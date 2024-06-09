@@ -145,8 +145,41 @@ void printSnake(snake_t snake, int foodX, int foodY, int snakeColor) {
     
     setColor(7);
 }
+void printMenu() {
+    system("cls");
+    printf("Welcome!\n");
+    printf("Choose color of Snake1:\n");
+    printf("1. Red\n");
+    printf("2. Blue\n");
+    printf("3. Green\n");
+    printf("Choose color of Snake2:\n");
+    printf("1. Red\n");
+    printf("2. Blue\n");
+    printf("3. Green\n");
+}
 
+int chooseColor() {
+    int choice;
+    scanf("%d", &choice);
+    switch (choice) {
+        case 1:
+            return RED;
+        case 2:
+            return BLUE;
+        case 3:
+            return GREEN;
+        default:
+            printf("Incorrect input, try again.\n");
+            return chooseColor();
+    }
+}
 int main() {
+	int snake1Color, snake2Color;
+    printMenu();
+    printf("Input color for Snake1: ");
+    snake1Color = chooseColor();
+    printf("Input color for Snake2: ");
+    snake2Color = chooseColor();
     srand(time(NULL));
     int foodX, foodY;
     struct snake_t snake1 = initSnake(10, 5, 2);
@@ -193,9 +226,9 @@ int main() {
         checkFood(&snake2, &foodX, &foodY);
         
         
-        printSnake(snake1, foodX, foodY, RED);
+        printSnake(snake1, foodX, foodY, snake1Color);
         
-        printSnake(snake2, foodX, foodY, BLUE);
+        printSnake(snake2, foodX, foodY, snake2Color);
         
         setColor(GREEN);
         printf("%c", FOOD_SYM);
@@ -207,3 +240,4 @@ int main() {
     }
     return 0;
 }
+
