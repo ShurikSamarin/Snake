@@ -3,10 +3,14 @@
 #include <conio.h>
 #include <unistd.h>
 #include <time.h>
+#include <windows.h> 
 
 #define MAX_X 25
 #define MAX_Y 25
-#define FOOD_SYM '$'
+#define FOOD_SYM 'O'
+#define RED 4
+#define BLUE 1
+#define GREEN 2
 
 typedef struct tail_t {
     int x;
@@ -18,159 +22,188 @@ typedef struct snake_t {
     int y;
     struct tail_t *tail;
     size_t tsize;
-    int direction; // 0 - right, 1 - up, 2 - left, 3 - down
+    int direction; 
     int level;
 } snake_t;
 
-struct snake_t initSnake(int x, int y, size_t tsize) {
-    struct snake_t snake;
-    snake.x = x;
-    snake.y = y;
-    snake.tsize = tsize;
-    snake.tail = (tail_t *)malloc(sizeof(tail_t) * 100);
-    for (int i = 0; i < tsize; ++i) {
-        snake.tail[i].x = x + i + 1;
-        snake.tail[i].y = y;
+
+void setColor(int ForgC) {
+    WORD wColor;
+    HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+    
+    if(GetConsoleScreenBufferInfo(hStdOut, &csbi)) {
+        wColor = (csbi.wAttributes & 0xF0) + (ForgC & 0x0F);
+        SetConsoleTextAttribute(hStdOut, wColor);
     }
-    snake.direction = 0;
+    return;
+}
+void moveSnake(snake_t *snake) {
+    
+    for (int i = snake->tsize - 1; i > 0; i--) {
+        snake->tail[i] = snake->tail[i - 1];
+    }
+    
+    snake->tail[0].x = snake->x;
+    snake->tail[0].y = snake->y;
+    switch (snake->direction) {
+        case 0: // Вправо
+            snake->x++;
+            break;
+        case 1: // Вверх
+            snake->y--;
+            break;
+        case 2: // Влево
+            snake->x--;
+            break;
+        case 3: // Вниз
+            snake->y++;
+            break;
+    }
+    
+    if (snake->x < 0 || snake->x >= MAX_X || snake->y < 0 || snake->y >= MAX_Y) {
+        printf("Game over! You hit the wall.\n");
+        exit(0);
+    }
+}
+
+
+void checkFood(snake_t *snake, int *foodX, int *foodY) {
+    if (snake->x == *foodX && snake->y == *foodY) {
+        
+        snake->tsize++;
+        snake->level++;
+        
+        *foodX = rand() % MAX_X;
+        *foodY = rand() % MAX_Y;
+    }
+}
+
+snake_t initSnake(int startX, int startY, int startSize) {
+    snake_t snake;
+    snake.x = startX;
+    snake.y = startY;
+    snake.tsize = startSize;
+    snake.tail = (tail_t*)malloc(snake.tsize * sizeof(tail_t));
+    snake.direction = 0; 
     snake.level = 1;
+    for (int i = 0; i < snake.tsize; i++) {
+        snake.tail[i].x = startX - i;
+        snake.tail[i].y = startY;
+    }
     return snake;
 }
 
-void printSnake(struct snake_t snake, int foodX, int foodY) {
-    char matrix[MAX_X][MAX_Y];
-    for (int i = 0; i < MAX_X; ++i) {
-        for (int j = 0; j < MAX_Y; ++j) {
-            matrix[i][j] = ' ';
+
+void changeDirection(snake_t *snake, int dir) {
+    
+    if (abs(snake->direction - dir) != 2) {
+        snake->direction = dir;
+    }
+}
+
+
+void printSnake(snake_t snake, int foodX, int foodY, int snakeColor) {
+    
+    system("cls"); 
+
+    
+    char field[MAX_X][MAX_Y];
+    for (int y = 0; y < MAX_Y; y++) {
+        for (int x = 0; x < MAX_X; x++) {
+            field[x][y] = ' ';
         }
     }
-    if (snake.x >= 0 && snake.x < MAX_X && snake.y >= 0 && snake.y < MAX_Y) {
-        matrix[snake.x][snake.y] = '@';
-    }
-    for (int i = 0; i < snake.tsize; ++i) {
-        if (snake.tail[i].x >= 0 && snake.tail[i].x < MAX_X && snake.tail[i].y >= 0 && snake.tail[i].y < MAX_Y) {
-            matrix[snake.tail[i].x][snake.tail[i].y] = '*';
+
+    
+    for (int i = 0; i < snake.tsize; i++) {
+        if (snake.tail[i].x >= 0 && snake.tail[i].x < MAX_X &&
+            snake.tail[i].y >= 0 && snake.tail[i].y < MAX_Y) {
+            field[snake.tail[i].x][snake.tail[i].y] = '*';
         }
     }
+
+    
     if (foodX >= 0 && foodX < MAX_X && foodY >= 0 && foodY < MAX_Y) {
-        matrix[foodX][foodY] = FOOD_SYM;
+        field[foodX][foodY] = FOOD_SYM;
     }
-    for (int j = 0; j < MAX_Y; ++j) {
-        for (int i = 0; i < MAX_X; ++i) {
-            printf("%c", matrix[i][j]);
+
+    
+    for (int y = 0; y < MAX_Y; y++) {
+        for (int x = 0; x < MAX_X; x++) {
+            if (field[x][y] == '*') {
+                setColor(snakeColor);
+                printf("%c", field[x][y]);
+                
+            } else {
+                printf("%c", field[x][y]);
+            }
         }
         printf("\n");
     }
-}
-
-snake_t moveLeft(snake_t snake) {
-    for (int i = snake.tsize - 1; i > 0; i--) {
-        snake.tail[i] = snake.tail[i - 1];
-    }
-    snake.tail[0].x = snake.x;
-    snake.tail[0].y = snake.y;
-    snake.x = snake.x - 1;
-    if (snake.x < 0) {
-        printf("Game over! You hit the left.\n");
-        exit(0);
-    }
-    return snake;
-}
-
-snake_t moveUp(snake_t snake) {
-    for (int i = snake.tsize - 1; i > 0; i--) {
-        snake.tail[i] = snake.tail[i - 1];
-    }
-    snake.tail[0].x = snake.x;
-    snake.tail[0].y = snake.y;
-    snake.y = snake.y - 1;
-    if (snake.y < 0) {
-        printf("Game over! You hit the top.\n");
-        exit(0);
-    }
-    return snake;
-}
-
-snake_t moveRight(snake_t snake) {
-    for (int i = snake.tsize - 1; i > 0; i--) {
-        snake.tail[i] = snake.tail[i - 1];
-    }
-    snake.tail[0].x = snake.x;
-    snake.tail[0].y = snake.y;
-    snake.x = snake.x + 1;
-    if (snake.x >= MAX_X) {
-        printf("Game over! You hit the right.\n");
-        exit(0);
-    }
-    return snake;
-}
-
-snake_t moveDown(snake_t snake) {
-    for (int i = snake.tsize - 1; i > 0; i--) {
-        snake.tail[i] = snake.tail[i - 1];
-    }
-    snake.tail[0].x = snake.x;
-    snake.tail[0].y = snake.y;
-    snake.y = snake.y + 1;
-    if (snake.y >= MAX_Y) {
-        printf("Game over! You hit the bottom.\n");
-        exit(0);
-    }
-    return snake;
-}
-
-void changeDirection(snake_t *snake, int newDirection) {
-    if (newDirection != (snake->direction + 2) % 4 && newDirection != (snake->direction + 4) % 4) {
-        snake->direction = newDirection;
-    }
+    
+    setColor(7);
 }
 
 int main() {
     srand(time(NULL));
     int foodX, foodY;
-    struct snake_t snake = initSnake(10, 5, 2);
+    struct snake_t snake1 = initSnake(10, 5, 2);
+    struct snake_t snake2 = initSnake(15, 5, 2); 
     foodX = rand() % MAX_X;
     foodY = rand() % MAX_Y;
     while (1) {
-        int ch = getch();
-        switch (ch) {
-            case 'w':
-                changeDirection(&snake, 1);
-                break;
-            case 'a':
-                changeDirection(&snake, 2);
-                break;
-            case 's':
-                changeDirection(&snake, 3);
-                break;
-            case 'd':
-                changeDirection(&snake, 0);
-                break;
+        if (_kbhit()) {
+            int ch = _getch();
+            
+            switch (ch) {
+                case 'w':
+                    changeDirection(&snake1, 1);
+                    break;
+                case 'a':
+                    changeDirection(&snake1, 2);
+                    break;
+                case 's':
+                    changeDirection(&snake1, 3);
+                    break;
+                case 'd':
+                    changeDirection(&snake1, 0);
+                    break;
+                
+                case '8':
+                    changeDirection(&snake2, 1);
+                    break;
+                case '4':
+                    changeDirection(&snake2, 2);
+                    break;
+                case '5':
+                    changeDirection(&snake2, 3);
+                    break;
+                case '6':
+                    changeDirection(&snake2, 0);
+                    break;
+            }
         }
-        switch (snake.direction) {
-            case 0:
-                snake = moveRight(snake);
-                break;
-            case 1:
-                snake = moveUp(snake);
-                break;
-            case 2:
-                snake = moveLeft(snake);
-                break;
-            case 3:
-                snake = moveDown(snake);
-                break;
-        }
-        if (snake.x == foodX && snake.y == foodY) {
-            snake.tsize++;
-            snake.level++;
-            foodX = rand() % MAX_X;
-            foodY = rand() % MAX_Y;
-        }
-        system("cls");
-        printSnake(snake, foodX, foodY);
-        printf("Level: %d\n", snake.level);
+        
+        moveSnake(&snake1);
+        moveSnake(&snake2);
+        
+        checkFood(&snake1, &foodX, &foodY);
+        checkFood(&snake2, &foodX, &foodY);
+        
+        
+        printSnake(snake1, foodX, foodY, RED);
+        
+        printSnake(snake2, foodX, foodY, BLUE);
+        
+        setColor(GREEN);
+        printf("%c", FOOD_SYM);
+        
+        printf("Level: %d\n", snake1.level);
+        printf("Level: %d\n", snake2.level);
         sleep(1);
+        
     }
     return 0;
 }

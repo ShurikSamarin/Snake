@@ -1,1 +1,1 @@
-# WASD control added
+# Snake2 and colour added
